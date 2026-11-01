@@ -35,6 +35,12 @@
     </dependency>
 
     <!-- Bundled (shaded) into the job jar -->
+    <!-- Required for Kafka delivery guarantees -->
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-base</artifactId>
+      <version>${flink.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-connector-kafka</artifactId>
