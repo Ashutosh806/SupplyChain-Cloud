@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Control Tower</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --bg:#0f1419; --panel:#171e26; --line:#26313d; --text:#e6edf3; --muted:#8b98a5; --accent:#4cc2ff;
+          --ok:#3fb950; --warn:#d29922; --bad:#f85149; --chip:#1f2a35; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; align-items:center; gap:16px; padding:14px 20px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; letter-spacing:.2px; }
+  header .links a { color:var(--accent); margin-right:14px; text-decoration:none; }
+  header .who { margin-left:auto; color:var(--muted); font-size:12px; }
+  main { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:14px; padding:14px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; min-width:0; }
+  section h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 10px; }
+  .wide { grid-column:1/-1; }
+  label { display:block; font-size:12px; color:var(--muted); margin:6px 0 2px; }
+  input, select, button { font:inherit; color:var(--text); background:#0c1116; border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
+  input, select { width:100%; }
+  button { background:#1d3346; border-color:#2b4a63; cursor:pointer; white-space:nowrap; }
+  button:hover { border-color:var(--accent); }
+  button.small { padding:3px 8px; font-size:12px; }
+  button.danger { background:#3a1d1f; border-color:#6b2b2f; }
+  .row { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
+  .row > * { flex:1; min-width:110px; }
+  .row > button { flex:0 0 auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  tr.sel td { background:#13283a; }
+  tbody tr { cursor:pointer; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }
+  .chip { display:inline-block; padding:1px 8px; border-radius:999px; background:var(--chip); font-size:12px; margin:1px 3px 1px 0; }
+  .st { font-weight:600; padding:2px 10px; border-radius:999px; }
+  .st.DELIVERED { background:#12361f; color:var(--ok); }
+  .st.DELAYED, .st.EXCEPTION, .st.RETURNED, .st.CANCELLED { background:#3b1a1a; color:var(--bad); }
+  .st.OUT_FOR_DELIVERY, .st.IN_TRANSIT, .st.AT_HUB, .st.PICKED_UP { background:#132c3e; color:var(--accent); }
+  .st.BOOKED, .st.UNKNOWN { background:var(--chip); color:var(--text); }
+  .nodes { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .node { border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .node.down { border-color:var(--bad); background:#22151a; }
+  .node .name { font-weight:600; font-size:13px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:var(--ok); }
+  .down .dot { background:var(--bad); }
+  .muted { color:var(--muted); }
+  .timeline { list-style:none; padding:0; margin:8px 0 0; max-height:230px; overflow:auto; }
+  .timeline li { padding:4px 0 4px 12px; border-left:2px solid var(--line); margin-left:4px; }
+  pre { background:#0c1116; border:1px solid var(--line); border-radius:6px; padding:8px; overflow:auto; max-height:260px; margin:8px 0 0; }
+  .bar { height:8px; background:var(--accent); border-radius:4px; }
+  #toast { position:fixed; bottom:16px; right:16px; background:#1d3346; border:1px solid var(--accent); padding:10px 14px; border-radius:8px; display:none; max-width:420px; }
+  .kv { display:grid; grid-template-columns:140px 1fr; gap:2px 10px; font-size:13px; }
+  .kv div:nth-child(odd) { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Supply Chain Control Tower</h1>
+  <div class="links">
+    <a href="/grafana/" target="_blank">Grafana</a>
+    <a href="/api/shipments" target="_blank">Shipments API</a>
+    <a href="/api/dynamo/ring" target="_blank">Ring JSON</a>
+  </div>
+  <div class="who" id="who"></div>
+</header>
+<main>
+  <section>
+    <h2>1 · Suppliers &amp; inventory</h2>
+    <div class="row">
+      <div><label>Supplier name</label><input id="supName" value="Acme Components"></div>
+      <div><label>Country</label><input id="supCountry" value="India"></div>
+      <button onclick="createSupplier()">Register</button>
+    </div>
+    <div class="row">
+      <div><label>Supplier</label><select id="supSelect"></select></div>
+      <div><label>SKU</label><input id="sku" value="SKU-PUMP-100"></div>
+      <div><label>Qty</label><input id="qty" type="number" value="500"></div>
+      <button onclick="addStock()">Add stock</button>
+    </div>
+    <table style="margin-top:10px"><thead><tr><th>SKU</th><th>On hand</th><th>Reserved</th><th>Available</th></tr></thead>
+      <tbody id="invBody"></tbody></table>
+  </section>
+
+  <section>
+    <h2>2 · Book a shipment</h2>
+    <div class="row">
+      <div><label>SKU</label><select id="bookSku"></select></div>
+      <div><label>Qty</label><input id="bookQty" type="number" value="5"></div>
+      <div><label>Carrier</label><select id="carrier"><option>DELHIVERY</option><option>BLUEDART</option><option>DHL</option><option>FEDEX</option><option>ECOMEXPRESS</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>Retailer</label><input id="retailer" value="RET-BLR-01"></div>
+      <div><label>Retailer e-mail</label><input id="retailerEmail" value="store@example.com"></div>
+      <button onclick="book()">Book</button>
+    </div>
+    <table style="margin-top:10px"><thead><tr><th>Tracking ID</th><th>Carrier</th><th>Route</th><th>Booked</th></tr></thead>
+      <tbody id="shipBody"></tbody></table>
+  </section>
+
+  <section>
+    <h2>3 · Carrier events (Tracking Ingestion)</h2>
+    <div class="kv"><div>Selected</div><div class="mono" id="selId">—</div></div>
+    <div class="row" style="margin-top:6px">
+      <div><label>Location</label><input id="loc" value="Pune Hub"></div>
+      <div><label>Note</label><input id="note" value=""></div>
+    </div>
+    <div style="margin-top:8px">
+      <button class="small" onclick="carrier('PICKED_UP')">Picked up</button>
+      <button class="small" onclick="carrier('IN_TRANSIT')">In transit</button>
+      <button class="small" onclick="carrier('AT_HUB')">At hub</button>
+      <button class="small" onclick="carrier('DELAYED')">Delayed</button>
+      <button class="small" onclick="carrier('EXCEPTION')">Exception</button>
+      <button class="small" onclick="carrier('OUT_FOR_DELIVERY')">Out for delivery</button>
+      <button class="small" onclick="carrier('DELIVERED')">Delivered</button>
+      <button class="small" onclick="journey()">▶ Full journey</button>
+      <button class="small danger" onclick="cancelShip()">Cancel shipment</button>
+    </div>
+    <label style="margin-top:12px">Proof of delivery → S3 (triggers the Notification Lambda)</label>
+    <div class="row"><input type="file" id="podFile"><button onclick="uploadPod()">Upload POD</button></div>
+  </section>
+
+  <section>
+    <h2>4 · Live status (Delivery Status · quorum read)</h2>
+    <div id="status" class="muted">Select a shipment.</div>
+    <div style="margin-top:8px">
+      <label style="display:inline">Read quorum R </label>
+      <select id="rsel" style="width:auto"><option>1</option><option selected>2</option><option>3</option></select>
+      <button class="small" onclick="showReplicas()">Inspect replicas</button>
+      <button class="small" onclick="conflict()">Create concurrent siblings</button>
+    </div>
+    <pre id="replicas" style="display:none"></pre>
+  </section>
+
+  <section class="wide">
+    <h2>5 · Leaderless replicated store — ring (N/R/W, hinted handoff, anti-entropy)</h2>
+    <div class="muted" id="ringMeta"></div>
+    <div class="nodes" id="nodes" style="margin-top:8px"></div>
+  </section>
+
+  <section>
+    <h2>6 · Notifications (SQS → Lambda → DynamoDB/SNS)</h2>
+    <table><thead><tr><th>When</th><th>Shipment</th><th>Status</th><th>Message</th></tr></thead><tbody id="notifBody"></tbody></table>
+  </section>
+
+  <section>
+    <h2>7 · Shipment analytics (Flink on EMR → Kafka → DynamoDB)</h2>
+    <div id="anSummary" class="kv"></div>
+    <table style="margin-top:10px"><thead><tr><th>Carrier</th><th>Last window</th><th>Events</th><th>Unique</th><th>Delayed</th><th>Lag ms</th></tr></thead><tbody id="anBody"></tbody></table>
+  </section>
+</main>
+<div id="toast"></div>
+<script>
+let CFG = {}, selected = null, suppliers = [], lastMerge = null;
+const $ = id => document.getElementById(id);
+const fmt = ms => ms ? new Date(ms).toLocaleString() : '—';
+function toast(msg, bad) { const t = $('toast'); t.textContent = msg; t.style.borderColor = bad ? 'var(--bad)' : 'var(--accent)'; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 4000); }
+async function api(path, opts = {}) {
+  let r;
+  for (let attempt = 0; attempt < 4; attempt++) {   // a crashed store node answers 503: just ask another node
+    r = await fetch(path, { headers: { 'content-type': 'application/json' }, ...opts });
+    if (r.status !== 503 || (opts.method && opts.method !== 'GET')) break;
+    await new Promise(res => setTimeout(res, 250));
+  }
+  const served = r.headers.get('x-served-by'); if (served) $('who').textContent = 'last response from pod ' + served;
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail || body));
+  return body;
+}
+async function loadSuppliers() {
+  suppliers = await api('/api/suppliers');
+  $('supSelect').innerHTML = suppliers.map(s => `<option value="${s.supplier_id}">${s.name} (${s.supplier_id})</option>`).join('');
+}
+async function loadInventory() {
+  const items = await api('/api/inventory/items');
+  $('invBody').innerHTML = items.map(i => `<tr><td class="mono">${i.sku}</td><td>${i.quantity_on_hand}</td><td>${i.quantity_reserved}</td><td>${i.available}</td></tr>`).join('');
+  const cur = $('bookSku').value;
+  $('bookSku').innerHTML = items.map(i => `<option value="${i.sku}" data-sup="${i.supplier_id}">${i.sku} (${i.available} avail)</option>`).join('');
+  if (cur) $('bookSku').value = cur;
+}
+async function loadShipments() {
+  const rows = await api('/api/shipments?limit=12');
+  $('shipBody').innerHTML = rows.map(s => `<tr class="${s.tracking_id === selected ? 'sel' : ''}" onclick="select('${s.tracking_id}')"><td class="mono">${s.tracking_id}</td><td>${s.carrier}</td><td>${s.origin} → ${s.destination}</td><td>${new Date(s.created_at).toLocaleTimeString()}</td></tr>`).join('');
+}
+async function createSupplier() {
+  try { const s = await api('/api/suppliers', { method: 'POST', body: JSON.stringify({ name: $('supName').value, country: $('supCountry').value, contact_email: 'ops@' + $('supName').value.toLowerCase().replace(/[^a-z]/g, '') + '.com' }) });
+    toast('Supplier ' + s.supplier_id + ' registered'); await loadSuppliers(); $('supSelect').value = s.supplier_id; } catch (e) { toast(e.message, true); }
+}
+async function addStock() {
+  try { await api('/api/inventory/items', { method: 'POST', body: JSON.stringify({ sku: $('sku').value, supplier_id: $('supSelect').value, name: $('sku').value, quantity: +$('qty').value }) });
+    toast('Stock added'); loadInventory(); } catch (e) { toast(e.message, true); }
+}
+async function book() {
+  const opt = $('bookSku').selectedOptions[0]; if (!opt) return toast('Add stock first', true);
+  try { const s = await api('/api/shipments', { method: 'POST', body: JSON.stringify({ supplier_id: opt.dataset.sup, retailer_id: $('retailer').value, retailer_email: $('retailerEmail').value, carrier: $('carrier').value, items: [{ sku: opt.value, quantity: +$('bookQty').value }] }) });
+    toast('Booked ' + s.tracking_id + ' (gRPC reservation ' + s.reservation_id + ')'); select(s.tracking_id); loadShipments(); loadInventory(); } catch (e) { toast(e.message, true); }
+}
+function select(id) { selected = id; $('selId').textContent = id; $('replicas').style.display = 'none'; loadShipments(); refreshStatus(); }
+async function carrier(status, eventTime) {
+  if (!selected) return toast('Select a shipment', true);
+  const sh = await api('/api/shipments/' + selected);
+  const body = { tracking_id: selected, carrier: sh.carrier, status, location: $('loc').value, note: $('note').value || null };
+  if (eventTime) body.event_time = eventTime;
+  try { const r = await api('/api/tracking/events', { method: 'POST', body: JSON.stringify(body) }); toast(status + ' accepted (' + r.carrier_event_ids[0] + ')'); setTimeout(loadInventory, 1500); }
+  catch (e) { toast(e.message, true); }
+}
+async function journey() {
+  if (!selected) return toast('Select a shipment', true);
+  const now = Date.now(), H = 3600e3;
+  const steps = [['PICKED_UP', 'Mumbai DC', -30 * H], ['IN_TRANSIT', 'NH48 Linehaul', -22 * H], ['AT_HUB', 'Pune Hub', -12 * H], ['OUT_FOR_DELIVERY', 'Bengaluru', -2 * H], ['DELIVERED', 'Bengaluru Store', 0]];
+  for (const [s, l, dt] of steps) { $('loc').value = l; await carrier(s, now + dt); await new Promise(r => setTimeout(r, 900)); }
+}
+async function cancelShip() { if (!selected) return; try { await api(`/api/shipments/${selected}/cancel`, { method: 'POST' }); toast('Cancelled; stock released via gRPC'); loadInventory(); } catch (e) { toast(e.message, true); } }
+async function refreshStatus() {
+  if (!selected) return;
+  try {
+    const r = await api(`/api/status/${selected}?r=${$('rsel').value}`), s = r.state, d = r.dynamo;
+    if (d.siblings_reconciled) lastMerge = { n: d.siblings_reconciled, at: new Date(), by: d.coordinator };
+    const merge = lastMerge && (Date.now() - lastMerge.at < 120000)
+      ? ` <span class="chip" style="background:#3a2d12">last read found ${lastMerge.n} concurrent versions → merged by ${lastMerge.by} at ${lastMerge.at.toLocaleTimeString()}</span>` : '';
+    $('status').innerHTML = `<div class="kv">
+      <div>Status</div><div><span class="st ${s.status}">${s.status}</span> <span class="muted">(progress: ${s.progress_status})</span></div>
+      <div>Route</div><div>${s.origin || '?'} → ${s.destination || '?'} · ${s.carrier || ''}</div>
+      <div>Last location</div><div>${s.last_location || '—'}</div>
+      <div>Promised / ETA</div><div>${fmt(s.promised_delivery)} / ${fmt(s.eta)}</div>
+      <div>Transit</div><div>${s.transit_hours != null ? s.transit_hours + ' h' : '—'} ${s.delay_minutes ? '· delay ' + s.delay_minutes + ' min' : ''}</div>
+      <div>Coordinator</div><div class="mono">${d.coordinator} (any node can coordinate)</div>
+      <div>Preference list</div><div>${d.preference_list.map(n => `<span class="chip">${n}</span>`).join('')}</div>
+      <div>Replied (need R=${d.r})</div><div>${d.replied.map(n => `<span class="chip">${n}</span>`).join('')} ${d.read_repaired.length ? '· read-repaired ' + d.read_repaired.join(', ') : ''}</div>
+      <div>Siblings</div><div>${d.siblings_found}${merge}</div>
+      <div>Vector clock</div><div class="mono">${JSON.stringify(d.vector_clock)}</div></div>
+      <ul class="timeline">${s.history.slice().reverse().map(h => `<li><b>${h.status}</b> <span class="muted">${fmt(h.event_time)}</span> ${h.location || ''} ${h.note ? '· ' + h.note : ''}</li>`).join('')}</ul>`;
+  } catch (e) { $('status').innerHTML = `<span class="muted">${/no status yet/.test(e.message) ? 'Waiting for the first event of this shipment…' : e.message}</span>`; }
+}
+async function showReplicas() { if (!selected) return; const r = await api(`/api/status/${selected}/replicas`); $('replicas').style.display = 'block'; $('replicas').textContent = JSON.stringify(r.replicas, null, 2); }
+async function conflict() { if (!selected) return; const r = await api(`/api/dynamo/demo/conflict/${selected}`, { method: 'POST' }); toast('Two concurrent writes by ' + r.concurrent_writes.map(w => w.coordinator).join(' & ')); showReplicas(); }
+async function uploadPod() {
+  const f = $('podFile').files[0]; if (!selected || !f) return toast('Select shipment and file', true);
+  try { const u = await api(`/api/status/${selected}/pod-upload-url`, { method: 'POST', body: JSON.stringify({ filename: f.name, content_type: f.type || 'application/octet-stream' }) });
+    const r = await fetch(u.upload_url, { method: 'PUT', headers: { 'content-type': u.content_type }, body: f });
+    if (!r.ok) throw new Error('S3 upload failed ' + r.status); toast('Uploaded to s3 ' + u.key + ' — Lambda will notify'); } catch (e) { toast(e.message, true); }
+}
+async function loadRing() {
+  try {
+    const views = (await Promise.allSettled([1, 2, 3, 4, 5].map(() => api('/api/dynamo/ring'))))
+      .filter(v => v.status === 'fulfilled').map(v => v.value);
+    const r = views[0];
+    const hints = {}, downSeen = {};
+    for (const v of views) {
+      for (const [k, n] of Object.entries(v.hints_pending)) hints[k] = Math.max(hints[k] || 0, n);
+      for (const [k, p] of Object.entries(v.peers)) if (!p.up) downSeen[k] = true;
+      if (v.simulated_failure_seconds_left > 0) downSeen[v.node_id] = true;
+    }
+    r.hints_pending = hints;
+    const byNode = {}; for (const v of views) byNode[v.node_id] = v.stats;   // one entry per node
+    const sum = k => Object.values(byNode).reduce((t, st) => t + (st[k] || 0), 0);
+    r.stats = { hints_delivered: sum('hints_delivered'), read_repairs: sum('read_repairs'), ae_keys_synced: sum('ae_keys_synced') };
+    $('ringMeta').innerHTML = `N=${r.n} · R=${r.r} · W=${r.w} · ${r.vnodes_per_node} virtual nodes/node · view from <b>${r.node_id}</b> · hints delivered ${r.stats.hints_delivered} · read repairs ${r.stats.read_repairs} · anti-entropy keys synced ${r.stats.ae_keys_synced}`;
+    const all = {};
+    for (const v of views) { all[v.node_id] = {}; for (const k of Object.keys(v.peers)) all[k] = {}; }
+    for (const k of Object.keys(all)) all[k].up = !downSeen[k];
+    $('nodes').innerHTML = Object.keys(all).sort().map(n => {
+      const up = all[n].up, own = r.ownership[n] || 0, hints = r.hints_pending[n] || 0;
+      return `<div class="node ${up ? '' : 'down'}"><div class="name"><span class="dot"></span>${n}</div>
+        <div class="muted">ring share ${(own * 100).toFixed(1)}%</div>
+        <div class="bar" style="width:${Math.max(4, own * 300)}%"></div>
+        <div class="muted">${hints ? hints + ' hints held for it' : '&nbsp;'}</div>
+        <button class="small danger" onclick="failNode('${n}')">Crash 60s</button>
+        <button class="small" onclick="recoverNode('${n}')">Recover</button></div>`;
+    }).join('');
+  } catch (e) { $('ringMeta').textContent = e.message; }
+}
+async function failNode(n) { try { await api(`/api/dynamo/nodes/${n}/fail?seconds=60`, { method: 'POST' }); toast(n + ' crashed for 60s — writes continue via sloppy quorum + hints'); } catch (e) { toast(e.message, true); } }
+async function recoverNode(n) { try { await api(`/api/dynamo/nodes/${n}/recover`, { method: 'POST' }); toast(n + ' recovered — hinted handoff will catch it up'); } catch (e) { toast(e.message, true); } }
+async function loadNotifications() {
+  if (!CFG.notification_url) { $('notifBody').innerHTML = '<tr><td colspan="4" class="muted">Notification URL not configured</td></tr>'; return; }
+  try {
+    const url = CFG.notification_url.replace(/\/$/, '') + '/?limit=15' + (selected ? '' : '');
+    const r = await (await fetch(url)).json();
+    $('notifBody').innerHTML = r.items.map(n => `<tr><td>${new Date(n.created_at).toLocaleTimeString()}</td><td class="mono">${n.tracking_id}</td><td><span class="st ${n.status}">${n.status}</span></td><td>${n.message || ''}</td></tr>`).join('');
+  } catch (e) { }
+}
+async function loadAnalytics() {
+  try {
+    const s = await api('/api/analytics/summary');
+    $('anSummary').innerHTML = `<div>Deliveries seen</div><div>${s.deliveries_observed}</div><div>Avg transit</div><div>${s.avg_transit_hours ?? '—'} h</div><div>On-time ratio</div><div>${s.on_time_ratio ?? '—'}</div>`;
+    const w = await api('/api/analytics/windows?limit=1');
+    $('anBody').innerHTML = Object.entries(w).map(([c, arr]) => { const x = arr[0]; if (!x) return ''; return `<tr><td>${c}</td><td>${new Date(x.window_start).toLocaleTimeString()}</td><td>${x.events}</td><td>${x.unique_shipments}</td><td>${(x.delayed || 0) + (x.exceptions || 0)}</td><td>${x.avg_ingest_lag_ms}</td></tr>`; }).join('');
+  } catch (e) { }
+}
+(async () => {
+  CFG = await api('/api/config').catch(() => ({}));
+  await Promise.allSettled([loadSuppliers(), loadInventory(), loadShipments(), loadRing(), loadNotifications(), loadAnalytics()]);
+  setInterval(refreshStatus, 2000); setInterval(loadRing, 3000); setInterval(loadNotifications, 4000);
+  setInterval(loadAnalytics, 10000); setInterval(loadInventory, 8000);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+# Metrics: Prometheus Operator + Prometheus + Grafana + kube-state-metrics + node-exporter.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 92.14.0
+    helm:
+      valuesObject:
+        fullnameOverride: kps
+        alertmanager:
+          enabled: false
+        kubeEtcd: { enabled: false }
+        kubeScheduler: { enabled: false }
+        kubeControllerManager: { enabled: false }
+        kubeProxy: { enabled: false }
+        prometheus:
+          prometheusSpec:
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            scrapeInterval: 15s
+            retention: 3d
+            resources:
+              requests: { cpu: 200m, memory: 1Gi }
+        grafana:
+          fullnameOverride: grafana   # Service/Deployment named 'grafana'
+          admin:
+            existingSecret: grafana-admin
+          serviceAccount:
+            create: true
+            name: grafana          # EKS Pod Identity -> CloudWatch read (Lambda logs)
+          grafana.ini:
+            server:
+              root_url: "%(protocol)s://%(domain)s/grafana/"
+              serve_from_sub_path: true
+            auth.anonymous:
+              enabled: false
+          sidecar:
+            dashboards:
+              enabled: true
+              label: grafana_dashboard
+              labelValue: "1"
+              searchNamespace: ALL
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              uid: loki
+              access: proxy
+              url: http://loki-gateway.monitoring.svc.cluster.local
+              jsonData:
+                maxLines: 1000
+            - name: CloudWatch
+              type: cloudwatch
+              uid: cloudwatch
+              access: proxy
+              jsonData:
+                authType: default
+                defaultRegion: __AWS_REGION__
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - ServerSideApply=true      # the Prometheus Operator CRDs are too large for client-side apply
+    retry: { limit: 10, backoff: { duration: 15s, factor: 2, maxDuration: 3m } }

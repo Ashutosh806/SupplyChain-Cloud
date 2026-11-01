@@ -1,0 +1,42 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: supplychain-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: supplychain.rules
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            sum by (service) (rate(http_requests_total{namespace="supplychain",status=~"5.."}[5m]))
+              / clamp_min(sum by (service) (rate(http_requests_total{namespace="supplychain"}[5m])), 1e-9) > 0.05
+          for: 2m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.service }} 5xx ratio above 5%"
+        - alert: SlowRequests
+          expr: |
+            histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket{namespace="supplychain"}[5m]))) > 1
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.service }} p95 latency above 1s"
+        - alert: OutboxBacklogGrowing
+          expr: sum(outbox_backlog) > 1000
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "Event Publisher is falling behind ({{ $value }} unpublished events)"
+        - alert: DynamoQuorumFailures
+          expr: sum(rate(dynamo_quorum_writes_total{result="quorum_failed"}[5m])) > 0
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "Delivery-status store cannot reach write quorum"
+        - alert: DynamoReplicaDown
+          expr: min by (peer) (dynamo_peer_up) == 0
+          for: 1m
+          labels: { severity: warning }
+          annotations:
+            summary: "Dynamo replica {{ $labels.peer }} is unreachable (sloppy quorum + hints active)"

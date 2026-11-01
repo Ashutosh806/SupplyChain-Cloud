@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package supplychain.dynamo.v1;
+
+// Internode protocol of the leaderless, Dynamo-style replicated store embedded
+// in the Delivery Status Service. Every node can coordinate any request; there
+// is no leader. Values travel as JSON-encoded lists of versions
+// ([{"clock": {...vector clock...}, "value": {...}}, ...]) so that concurrent
+// siblings can be exchanged and reconciled.
+service DynamoNode {
+  rpc Ping(PingRequest) returns (PingReply);
+  rpc ReplicaPut(PutRequest) returns (PutReply);
+  rpc ReplicaGet(GetRequest) returns (GetReply);
+  rpc MerkleLeaves(MerkleRequest) returns (MerkleReply);
+  rpc SyncBucket(SyncRequest) returns (SyncReply);
+}
+
+message PingRequest { string from_node = 1; }
+message PingReply { string node_id = 1; int64 keys = 2; int64 hints = 3; }
+
+message PutRequest {
+  string key = 1;
+  string versions_json = 2;
+  string hint_for = 3;      // non-empty => sloppy-quorum stand-in, keep as a hint
+  string coordinator = 4;
+}
+message PutReply { bool ok = 1; string node_id = 2; }
+
+message GetRequest { string key = 1; }
+message GetReply { string versions_json = 1; string node_id = 2; bool found = 3; }
+
+// Anti-entropy: compare Merkle trees over the keys two replicas share.
+message MerkleRequest { string requester = 1; int32 buckets = 2; }
+message MerkleReply { string root = 1; repeated string leaves = 2; }
+
+message SyncRequest {
+  string requester = 1;
+  int32 bucket = 2;
+  int32 buckets = 3;
+  string entries_json = 4;  // {key: versions} held by requester for this bucket
+}
+message SyncReply { string entries_json = 1; }

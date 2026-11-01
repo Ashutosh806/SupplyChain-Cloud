@@ -1,0 +1,13 @@
+# Prometheus scrapes /metrics of every service labelled part-of=supplychain.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: supplychain
+  labels: { app.kubernetes.io/part-of: supplychain }
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/part-of: supplychain }
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

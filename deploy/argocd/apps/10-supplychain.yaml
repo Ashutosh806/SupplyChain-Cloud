@@ -1,0 +1,23 @@
+# The application: 7 containerised microservices (+ ingress, HPAs, ServiceMonitor).
+# CI updates image tags in deploy/apps/overlays/aws/kustomization.yaml; Argo CD rolls them out.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: supplychain
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: default
+  source:
+    repoURL: __GIT_REPO_URL__
+    targetRevision: main
+    path: deploy/apps/overlays/aws
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: supplychain
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [SkipDryRunOnMissingResource=true]
+    retry: { limit: 10, backoff: { duration: 15s, factor: 2, maxDuration: 3m } }

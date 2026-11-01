@@ -1,0 +1,25 @@
+# EKS Auto Mode's built-in load balancer controller provisions one shared, internet-facing ALB
+# for every Ingress that uses this class (grouped by IngressClassParams.group).
+apiVersion: eks.amazonaws.com/v1
+kind: IngressClassParams
+metadata:
+  name: alb
+spec:
+  scheme: internet-facing
+  inboundCIDRs:            # explicit: the demo URL must be reachable from anywhere
+    - 0.0.0.0/0
+  group:
+    name: supplychain
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: alb
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  controller: eks.amazonaws.com/alb
+  parameters:
+    apiGroup: eks.amazonaws.com
+    kind: IngressClassParams
+    name: alb

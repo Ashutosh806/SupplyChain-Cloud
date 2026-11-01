@@ -1,0 +1,77 @@
+# Inventory Service - REST for stock, gRPC InventoryService for reservations, Kafka consumer for dispatch. Scaled by HPA.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  labels: { app.kubernetes.io/name: inventory-service, app.kubernetes.io/part-of: supplychain }
+spec:
+  # replicas are owned by the HorizontalPodAutoscaler (hpa.yaml)
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: inventory-service }
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: inventory-service, app.kubernetes.io/part-of: supplychain }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+      nodeSelector: { kubernetes.io/arch: amd64 }   # images are built for linux/amd64
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app.kubernetes.io/name: inventory-service } }
+      containers:
+        - name: app
+          image: inventory-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: grpc, containerPort: 50051 }
+          envFrom:
+            - configMapRef: { name: infra-config }
+            - secretRef: { name: db-credentials }
+          env:
+            - { name: SERVICE_NAME, value: inventory-service }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - { name: GRPC_PORT, value: "50051" }
+          resources:
+            requests: { cpu: 150m, memory: 192Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  labels: { app.kubernetes.io/name: inventory-service, app.kubernetes.io/part-of: supplychain }
+spec:
+  selector: { app.kubernetes.io/name: inventory-service }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+    - { name: grpc, port: 50051, targetPort: grpc, appProtocol: grpc }
+---
+# Headless service: gRPC clients resolve every pod IP and round-robin across them
+# (a ClusterIP would pin each long-lived HTTP/2 connection to a single pod).
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service-grpc
+  labels: { app.kubernetes.io/name: inventory-service }
+spec:
+  clusterIP: None
+  selector: { app.kubernetes.io/name: inventory-service }
+  ports:
+    - { name: grpc, port: 50051, targetPort: grpc, appProtocol: grpc }

@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - grafana-ingress.yaml
+  - loki-ingest-nlb.yaml
+  - alert-rules.yaml
+configMapGenerator:
+  - name: supplychain-dashboard
+    files:
+      - dashboards/supplychain-overview.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"

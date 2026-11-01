@@ -1,0 +1,22 @@
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+# terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+**/.build/
+crash.log
+# keep tfvars out of git: they can contain tokens
+*.tfvars
+# java
+analytics/flink-job/target/
+# local
+.DS_Store
+.idea/
+.vscode/
+
+# make up logs
+logs/
+*.tfstate.orphaned.*

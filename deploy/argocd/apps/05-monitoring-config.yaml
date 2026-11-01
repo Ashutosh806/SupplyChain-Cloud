@@ -1,0 +1,22 @@
+# Our own observability config: Grafana dashboard, alert rules, Grafana ingress, Loki NLB for EMR.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: default
+  source:
+    repoURL: __GIT_REPO_URL__
+    targetRevision: main
+    path: deploy/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [SkipDryRunOnMissingResource=true]
+    retry: { limit: 10, backoff: { duration: 15s, factor: 2, maxDuration: 3m } }

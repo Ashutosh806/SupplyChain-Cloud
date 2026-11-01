@@ -1,0 +1,29 @@
+# Environment overlay tracked by Argo CD. `scripts/up.sh images` bumps newTag;
+# the commit is the deployment - Argo CD notices it and rolls the change out.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: supplychain
+resources:
+  - ../../base
+images:
+  - name: supplier-service
+    newName: __ECR_REGISTRY__/supplychain/supplier-service
+    newTag: latest
+  - name: booking-service
+    newName: __ECR_REGISTRY__/supplychain/booking-service
+    newTag: latest
+  - name: inventory-service
+    newName: __ECR_REGISTRY__/supplychain/inventory-service
+    newTag: latest
+  - name: tracking-ingestion
+    newName: __ECR_REGISTRY__/supplychain/tracking-ingestion
+    newTag: latest
+  - name: event-publisher
+    newName: __ECR_REGISTRY__/supplychain/event-publisher
+    newTag: latest
+  - name: delivery-status
+    newName: __ECR_REGISTRY__/supplychain/delivery-status
+    newTag: latest
+  - name: analytics-api
+    newName: __ECR_REGISTRY__/supplychain/analytics-api
+    newTag: latest

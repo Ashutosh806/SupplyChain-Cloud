@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package supplychain.inventory.v1;
+
+// Synchronous, strongly-typed stock reservation used by the Shipment Booking
+// Service while it creates a shipment (gRPC over HTTP/2 inside the cluster).
+service InventoryService {
+  rpc ReserveStock(ReserveRequest) returns (ReserveResponse);
+  rpc ReleaseStock(ReleaseRequest) returns (ReleaseResponse);
+  rpc GetAvailability(AvailabilityRequest) returns (AvailabilityResponse);
+}
+
+message Line {
+  string sku = 1;
+  int32 quantity = 2;
+}
+
+message ReserveRequest {
+  string order_ref = 1;      // tracking id; makes the call idempotent
+  string supplier_id = 2;
+  repeated Line lines = 3;
+}
+
+message ReserveResponse {
+  bool ok = 1;
+  string reservation_id = 2;
+  string message = 3;
+  repeated Line shortages = 4;
+}
+
+message ReleaseRequest {
+  string reservation_id = 1;
+  string order_ref = 2;
+  string reason = 3;
+}
+
+message ReleaseResponse {
+  bool ok = 1;
+  string message = 2;
+}
+
+message AvailabilityRequest {
+  string sku = 1;
+}
+
+message AvailabilityResponse {
+  string sku = 1;
+  int32 on_hand = 2;
+  int32 reserved = 3;
+  int32 available = 4;
+  bool found = 5;
+}

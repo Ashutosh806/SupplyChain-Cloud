@@ -1,0 +1,26 @@
+CS/SS G527 Cloud Computing - Assignment task division
+Domain  : Supply Chain - shipment tracking from suppliers to retailers
+Concept : Leaderless replication / Dynamo-like storage system
+Cloud   : AWS
+
+(Replace the IDs and names with your group's details.)
+
+ID No.          Name          Requirements (a-h)                                   Microservices
+--------------  ------------  ---------------------------------------------------  -------------------------------------------
+20XXXXXXXXXX    <Member 1>    (a) Infrastructure as Code (Terraform)               1. Supplier Service
+                              (d) GitOps (Argo CD)                                 3. Inventory Service
+
+20XXXXXXXXXX    <Member 2>    (b) Serverless function + REST / gRPC / queues       2. Shipment Booking Service (public web app)
+                              (g) Three storage products (S3, RDS, DynamoDB)       7. Notification Service (AWS Lambda)
+
+20XXXXXXXXXX    <Member 3>    (c) Managed Kubernetes (EKS) + HPA + k6 load test    4. Tracking Ingestion Service
+                              (h) Observability (Prometheus, Grafana, Loki)        5. Event Publisher (outbox)
+
+20XXXXXXXXXX    <Member 4>    (e) Flink stream processing on Amazon EMR            6. Delivery Status Service (Dynamo-style store)
+                              (f) Concept: leaderless Dynamo-like replication      8. Shipment Analytics Service (Flink job)
+
+Self-check per member (same script on a laptop and on AWS):
+  Member 1: make check-m1      Member 2: make check-m2
+  Member 3: make check-m3      Member 4: make check-m4   (Flink tests: cd analytics/flink-job && mvn test)
+
+Demo: one walkthrough of the whole system (docs/DEMO.md); each member explains their own part.

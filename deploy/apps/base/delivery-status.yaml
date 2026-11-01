@@ -1,0 +1,117 @@
+# Delivery Status Service - derives current shipment state. Each pod is ALSO a node of the
+# embedded leaderless Dynamo-style replicated store (consistent hashing, N=3/R=2/W=2, vector
+# clocks, sloppy quorum + hinted handoff, read repair, Merkle anti-entropy). Stateful by design:
+# a StatefulSet gives every node a stable identity (ring membership) and its own EBS volume.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: delivery-status   # EKS Pod Identity -> SQS SendMessage + S3 presign (pod/*)
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: delivery-status
+  labels: { app.kubernetes.io/name: delivery-status, app.kubernetes.io/part-of: supplychain }
+spec:
+  serviceName: delivery-status-hl
+  replicas: 5
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: { app.kubernetes.io/name: delivery-status }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: delivery-status, app.kubernetes.io/part-of: supplychain }
+    spec:
+      serviceAccountName: delivery-status
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+      nodeSelector: { kubernetes.io/arch: amd64 }   # images are built for linux/amd64
+      terminationGracePeriodSeconds: 20
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app.kubernetes.io/name: delivery-status } }
+      containers:
+        - name: app
+          image: delivery-status
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: dynamo, containerPort: 50052 }
+          envFrom:
+            - configMapRef: { name: infra-config }
+          env:
+            - { name: SERVICE_NAME, value: delivery-status }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: NODE_ID
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - { name: STATEFULSET, value: delivery-status }
+            - { name: HEADLESS_SERVICE, value: delivery-status-hl }
+            - { name: DYNAMO_REPLICAS, value: "5" }   # must equal spec.replicas (static membership)
+            - { name: DYNAMO_N, value: "3" }
+            - { name: DYNAMO_R, value: "2" }
+            - { name: DYNAMO_W, value: "2" }
+            - { name: DYNAMO_VNODES, value: "128" }
+            - { name: DATA_DIR, value: /data }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          resources:
+            requests: { cpu: 150m, memory: 192Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 3
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Headless service: stable per-node DNS (delivery-status-N.delivery-status-hl) for the
+# internode gRPC protocol. publishNotReadyAddresses keeps a "crashed" (not-ready) node
+# resolvable so that peers observe RPC failures exactly like a real outage.
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-status-hl
+  labels: { app.kubernetes.io/name: delivery-status }
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector: { app.kubernetes.io/name: delivery-status }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+    - { name: dynamo, port: 50052, targetPort: dynamo, appProtocol: grpc }
+---
+# Client-facing service (ALB target). Any node can coordinate any request (leaderless).
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-status
+  labels: { app.kubernetes.io/name: delivery-status, app.kubernetes.io/part-of: supplychain }
+spec:
+  selector: { app.kubernetes.io/name: delivery-status }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+# Voluntary disruptions (Auto Mode node consolidation, upgrades) may take down at most one
+# store node at a time, so every key keeps >= N-1 = 2 live replicas (W=2 / R=2 still met).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: delivery-status
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: delivery-status }

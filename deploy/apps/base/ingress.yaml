@@ -1,0 +1,26 @@
+# Public entry point: one internet-facing ALB (EKS Auto Mode) with path-based routing.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: supplychain
+  annotations:
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "10"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - { path: /api/suppliers, pathType: Prefix, backend: { service: { name: supplier-service, port: { number: 8080 } } } }
+          - { path: /api/shipments, pathType: Prefix, backend: { service: { name: booking-service, port: { number: 8080 } } } }
+          - { path: /api/config, pathType: Exact, backend: { service: { name: booking-service, port: { number: 8080 } } } }
+          - { path: /api/inventory, pathType: Prefix, backend: { service: { name: inventory-service, port: { number: 8080 } } } }
+          - { path: /api/tracking, pathType: Prefix, backend: { service: { name: tracking-ingestion, port: { number: 8080 } } } }
+          - { path: /api/publisher, pathType: Prefix, backend: { service: { name: event-publisher, port: { number: 8080 } } } }
+          - { path: /api/status, pathType: Prefix, backend: { service: { name: delivery-status, port: { number: 8080 } } } }
+          - { path: /api/dynamo, pathType: Prefix, backend: { service: { name: delivery-status, port: { number: 8080 } } } }
+          - { path: /api/analytics, pathType: Prefix, backend: { service: { name: analytics-api, port: { number: 8080 } } } }
+          - { path: /, pathType: Exact, backend: { service: { name: booking-service, port: { number: 8080 } } } }
