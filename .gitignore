@@ -17,9 +17,13 @@ analytics/flink-job/target/
 .idea/
 .vscode/
 
+# Argo CD chart packages downloaded by scripts/up.sh
+infra/terraform/02-bootstrap/.charts/
+
 # make up logs
 logs/
 *.tfstate.orphaned.*
 
 # Windows download markers
 *:Zone.Identifier
+

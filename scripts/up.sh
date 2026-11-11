@@ -38,8 +38,24 @@ images() {       # 2. build the 7 images, push to ECR, point the GitOps overlay 
   git -C "$ROOT" push -q
 }
 
+fetch_chart() {  # download an Argo CD chart package with curl (retries); Helm's own download can time out
+  local name=$1 key=$2 v f
+  v=$(sed -nE "s/^ ${key} *= *\"([^\"]+)\"./\1/p" "$TF2/main.tf")
+  [ -n "$v" ] || die "chart version '$key' not found in $TF2/main.tf"
+  f="$TF2/.charts/$name-$v.tgz"
+  mkdir -p "$TF2/.charts"
+  if [ -s "$f" ] && tar -tzf "$f" >/dev/null 2>&1; then return 0; fi
+  echo "  downloading chart $name $v"
+  curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 20 --max-time 300 \
+    -o "$f.part" "https://github.com/argoproj/argo-helm/releases/download/$name-$v/$name-$v.tgz" \
+    || die "could not download chart $name $v - check the internet connection and run make up again"
+  mv "$f.part" "$f"
+}
+
 gitops() {       # 3. Argo CD + the root app; Argo CD then deploys everything else from Git
   log "3/5 Terraform: Argo CD (it then deploys apps + monitoring from Git)"
+  fetch_chart argo-cd argocd_chart_version
+  fetch_chart argocd-apps argocd_apps_chart_version
   terraform -chdir="$TF2" init -input=false >/dev/null
   terraform -chdir="$TF2" apply -input=false -auto-approve
 }

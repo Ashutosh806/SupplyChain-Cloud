@@ -133,13 +133,20 @@ resource "kubernetes_secret_v1" "grafana_admin" {
 }
 
 # ------------------------------------------------------------------ Argo CD
+# Argo CD chart packages are downloaded beforehand by scripts/up.sh (curl with retries) into
+# .charts/ and installed from there: Helm's own download from GitHub release assets times out on
+# some networks. To change a version, edit it here - up.sh reads it from this file.
+locals {
+  argocd_chart_version      = "10.11.6"
+  argocd_apps_chart_version = "2.0.7"
+}
+
 resource "helm_release" "argocd" {
   name             = "argocd"
   namespace        = "argocd"
   create_namespace = true
-  repository       = "https://argoproj.github.io/argo-helm"
-  chart            = "argo-cd"
-  version          = "10.11.6"
+  chart            = "${path.module}/.charts/argo-cd-${local.argocd_chart_version}.tgz"
+  version          = local.argocd_chart_version
   timeout          = 900
 
   values = [yamlencode({
@@ -189,9 +196,8 @@ resource "kubernetes_secret_v1" "repo" {
 resource "helm_release" "root_app" {
   name       = "argocd-root"
   namespace  = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argocd-apps"
-  version    = "2.0.7"
+  chart      = "${path.module}/.charts/argocd-apps-${local.argocd_apps_chart_version}.tgz"
+  version    = local.argocd_apps_chart_version
 
   values = [yamlencode({
     applications = {
