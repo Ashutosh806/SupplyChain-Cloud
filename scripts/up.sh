@@ -40,7 +40,7 @@ images() {       # 2. build the 7 images, push to ECR, point the GitOps overlay 
 
 fetch_chart() {  # download an Argo CD chart package with curl (retries); Helm's own download can time out
   local name=$1 key=$2 v f
-  v=$(sed -nE "s/^ ${key} *= *\"([^\"]+)\"./\1/p" "$TF2/main.tf")
+  v=$(awk -F'"' -v k="$key" '$1 ~ ("^[ ]+" k "[ ]+=") {print $2; exit}' "$TF2/main.tf")
   [ -n "$v" ] || die "chart version '$key' not found in $TF2/main.tf"
   f="$TF2/.charts/$name-$v.tgz"
   mkdir -p "$TF2/.charts"
