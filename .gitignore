@@ -20,3 +20,6 @@ analytics/flink-job/target/
 # make up logs
 logs/
 *.tfstate.orphaned.*
+
+# Windows download markers
+*:Zone.Identifier
