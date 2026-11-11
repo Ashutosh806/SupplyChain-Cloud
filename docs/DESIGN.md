@@ -32,7 +32,7 @@ changes, and compute real-time logistics KPIs (transit time, delay, event-proces
 | b. Serverless + REST/gRPC/MQ | Notification Service is a Lambda triggered by SQS and S3. REST (public API, Booking→Supplier, Ingestion→Booking), gRPC (Booking→Inventory, Dynamo internode), message queues (Amazon MSK/Kafka topics + Amazon SQS). |
 | c. Managed K8s + HPA + load test | Amazon EKS (Auto Mode). HPAs on tracking-ingestion, booking-service, inventory-service (CPU/memory). k6 scripts in `loadtest/k6`. |
 | d. GitOps | Argo CD app-of-apps tracks `deploy/argocd/apps`; a release is a Git commit of new image tags (`make up` / `scripts/up.sh images`). No `kubectl apply` for services. |
-| e. Flink on managed cluster | `analytics/flink-job` on Amazon EMR 7.12 (Flink 1.20) consuming `shipment-events` from MSK, event-time tumbling 1-min windows + keyed state, writing to `shipment-analytics-results`. |
+| e. Flink on managed cluster | `analytics/flink-job` on Amazon EMR 7.14 (Flink 1.20) consuming `shipment-events` from MSK, event-time tumbling 1-min windows + keyed state, writing to `shipment-analytics-results`. |
 | f. Concept | Leaderless Dynamo-style replicated store embedded in Delivery Status (consistent hashing + vnodes, N/R/W quorums, vector clocks, sloppy quorum, hinted handoff, read repair, Merkle anti-entropy). §5. |
 | g. 3 storage products | Amazon S3 (raw carrier events, proof-of-delivery files that trigger Lambda), Amazon RDS PostgreSQL (relational data + outbox), Amazon DynamoDB (notifications, analytics results). Plus EBS volumes for the Dynamo nodes. |
 | h. Observability | Prometheus + Grafana (kube-prometheus-stack) with a custom dashboard (RPS, error rate, latency, HPA, cluster health, pipeline, Dynamo store, analytics), PrometheusRules; centralized logs with Fluent Bit → Loki for all pods **and** the Flink job on EMR (Fluent Bit bootstrap action), Lambda logs via the Grafana CloudWatch data source. |
@@ -60,7 +60,7 @@ flowchart TB
         end
         rds[(Amazon RDS<br/>PostgreSQL 16)]
         msk[[Amazon MSK<br/>Kafka 3.9 · 2 brokers]]
-        emr["Amazon EMR 7.12<br/>Flink 1.20 on YARN"]
+        emr["Amazon EMR 7.14<br/>Flink 1.20 on YARN"]
         nlb[Internal NLB → Loki]
       end
     end
@@ -159,7 +159,7 @@ sequenceDiagram
   B->>S: GET supplier (REST) — must be ACTIVE
   B->>I: ReserveStock(order_ref = tracking id)  [idempotent]
   I->>DB: lock rows, reserve, outbox(InventoryReserved)
-  B->>DB: BEGIN; INSERT shipment; INSERT outbox(ShipmentBooked); COMMIT
+  B->>DB: one transaction: INSERT shipment + INSERT outbox(ShipmentBooked)
   alt DB failure
     B->>I: ReleaseStock (compensation)
   end

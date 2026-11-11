@@ -50,9 +50,9 @@ variable "enable_emr" {
 }
 
 variable "emr_release" {
-  description = "EMR release label (emr-7.12.0 ships Flink 1.20.0)"
+  description = "EMR release label (emr-7.14.0 ships Flink 1.20.0; it is the newest EMR 7.x release)"
   type        = string
-  default     = "emr-7.12.0"
+  default     = "emr-7.14.0"
 }
 
 variable "emr_instance_type" {

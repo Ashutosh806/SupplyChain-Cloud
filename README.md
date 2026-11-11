@@ -28,7 +28,8 @@ of the whole system**: [docs/DEMO.md](docs/DEMO.md).
 ## Work on your laptop (no AWS)
 
 ```bash
-pip install -r services/requirements.txt     # Python 3.12; PostgreSQL 16 installed (brew/apt) or Docker
+python3 -m venv .venv && source .venv/bin/activate   # Python 3.12, 3.13 or 3.14
+pip install -r services/requirements.txt     # + PostgreSQL 16 installed (apt/brew) or Docker
 make local                                   # whole system on http://localhost:8000
 make check-m2                                # in another terminal: check your part against it
 make test                                    # all four member checks (also run by CI on every push)
@@ -60,5 +61,5 @@ local/           run everything on a laptop
 scripts/         configure, up, down, status, urls, load test, gitops demo, simulate
 loadtest/k6      HPA load test
 docs/            DESIGN.md (deliverable), DEPLOY.md, DEMO.md
-task_division.txt
+task_divison.txt   (spelled exactly as in the assignment brief)
 ```
