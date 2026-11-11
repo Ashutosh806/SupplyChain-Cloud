@@ -59,7 +59,7 @@ spec:
             - { name: data, mountPath: /data }
           resources:
             requests: { cpu: 150m, memory: 192Mi }
-            limits: { cpu: "1", memory: 512Mi }
+            limits: { cpu: 500m, memory: 512Mi }     # one busy pod cannot starve its neighbours
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 3

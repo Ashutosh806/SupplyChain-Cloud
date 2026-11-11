@@ -41,8 +41,8 @@ spec:
             - { name: BOOKING_URL, value: "http://booking-service:8080" }
             - { name: VALIDATE_TRACKING_IDS, value: "true" }
           resources:
-            requests: { cpu: 150m, memory: 192Mi }
-            limits: { cpu: "1", memory: 512Mi }
+            requests: { cpu: 250m, memory: 256Mi }   # realistic: lets EKS add nodes when HPAs scale out
+            limits: { cpu: 500m, memory: 512Mi }     # one busy pod cannot starve its neighbours
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 5

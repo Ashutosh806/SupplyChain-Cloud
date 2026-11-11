@@ -40,8 +40,8 @@ spec:
             - { name: INVENTORY_GRPC, value: "dns:///inventory-service-grpc.supplychain.svc.cluster.local:50051" }  # client-side LB over headless svc
             - { name: SUPPLIER_URL, value: "http://supplier-service:8080" }
           resources:
-            requests: { cpu: 150m, memory: 192Mi }
-            limits: { cpu: "1", memory: 512Mi }
+            requests: { cpu: 250m, memory: 256Mi }   # realistic: lets EKS add nodes when HPAs scale out
+            limits: { cpu: 500m, memory: 512Mi }     # one busy pod cannot starve its neighbours
           readinessProbe:
             httpGet: { path: /readyz, port: http }
             periodSeconds: 5
