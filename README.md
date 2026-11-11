@@ -1,4 +1,4 @@
-# Supply Chain Shipment Tracking on AWS
+# Supply Chain Shipment Tracking on AWS project
 
 CS/SS G527 Cloud Computing · Domain: shipment tracking from suppliers to retailers ·
 Concept: **leaderless replication / Dynamo-like storage**.
