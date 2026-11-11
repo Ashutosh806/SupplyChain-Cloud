@@ -7,23 +7,23 @@ resources:
   - ../../base
 images:
   - name: supplier-service
-    newName: __ECR_REGISTRY__/supplychain/supplier-service
+    newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/supplier-service
     newTag: latest
   - name: booking-service
-    newName: __ECR_REGISTRY__/supplychain/booking-service
+    newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/booking-service
     newTag: latest
   - name: inventory-service
-    newName: __ECR_REGISTRY__/supplychain/inventory-service
+    newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/inventory-service
     newTag: latest
   - name: tracking-ingestion
-    newName: __ECR_REGISTRY__/supplychain/tracking-ingestion
+    newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/tracking-ingestion
     newTag: latest
   - name: event-publisher
-    newName: __ECR_REGISTRY__/supplychain/event-publisher
+    newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/event-publisher
     newTag: latest
   - name: delivery-status
-    newName: __ECR_REGISTRY__/supplychain/delivery-status
+    newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/delivery-status
     newTag: latest
   - name: analytics-api
-    newName: __ECR_REGISTRY__/supplychain/analytics-api
+    newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/analytics-api
     newTag: latest

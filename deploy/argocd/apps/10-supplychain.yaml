@@ -11,7 +11,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: __GIT_REPO_URL__
+    repoURL: https://github.com/Ashutosh806/SupplyChain-Cloud.git
     targetRevision: main
     path: deploy/apps/overlays/aws
   destination:
