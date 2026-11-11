@@ -8,22 +8,22 @@ resources:
 images:
   - name: supplier-service
     newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/supplier-service
-    newTag: latest
+    newTag: 0b7070982e3a
   - name: booking-service
     newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/booking-service
-    newTag: latest
+    newTag: 0b7070982e3a
   - name: inventory-service
     newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/inventory-service
-    newTag: latest
+    newTag: 0b7070982e3a
   - name: tracking-ingestion
     newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/tracking-ingestion
-    newTag: latest
+    newTag: 0b7070982e3a
   - name: event-publisher
     newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/event-publisher
-    newTag: latest
+    newTag: 0b7070982e3a
   - name: delivery-status
     newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/delivery-status
-    newTag: latest
+    newTag: 0b7070982e3a
   - name: analytics-api
     newName: 112889061290.dkr.ecr.ap-south-1.amazonaws.com/supplychain/analytics-api
-    newTag: latest
+    newTag: 0b7070982e3a
