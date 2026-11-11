@@ -9,7 +9,7 @@ REGISTRY="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
 grep -rl -e '__GIT_REPO_URL__' -e '__ECR_REGISTRY__' -e '__AWS_REGION__' "$ROOT/deploy" | while read -r f; do
   sed -i.bak -e "s#__GIT_REPO_URL__#$REPO#g" -e "s#__ECR_REGISTRY__#$REGISTRY#g" -e "s#__AWS_REGION__#$REGION#g" "$f"
   rm -f "$f.bak"; echo "  configured ${f#$ROOT/}"
-done
+done || true   # nothing left to replace is fine (re-run)
 printf 'region = "%s"\n# admin_principal_arns = ["arn:aws:iam::%s:user/teammate"]   # teammates get kubectl access\n# alert_email = "you@example.com"\n' "$REGION" "$ACCOUNT" > "$TF1/terraform.tfvars"
 printf 'git_repo_url = "%s"\n# private repo? also set git_username and git_token (read-only PAT)\n' "$REPO" > "$TF2/terraform.tfvars"
 log "Done. Now: git add -A && git commit -m configure && git push"
