@@ -3,7 +3,6 @@ kind: Kustomization
 namespace: monitoring
 resources:
   - grafana-ingress.yaml
-  - loki-ingest-nlb.yaml
   - alert-rules.yaml
 configMapGenerator:
   - name: supplychain-dashboard

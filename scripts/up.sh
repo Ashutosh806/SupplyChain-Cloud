@@ -10,7 +10,7 @@ infra() {        # 1. AWS infrastructure with Terraform
   terraform -chdir="$TF1" init -input=false >/dev/null
   # keep EMR as it is if it already exists, otherwise create it later in step 5
   if terraform -chdir="$TF1" state list 2>/dev/null | grep -q aws_emr_cluster.flink; then
-    terraform -chdir="$TF1" apply -input=false -auto-approve -var enable_emr=true -var "loki_push_url=$(tf1 loki_push_url)"
+    terraform -chdir="$TF1" apply -input=false -auto-approve -var enable_emr=true
   else
     terraform -chdir="$TF1" apply -input=false -auto-approve
   fi
@@ -75,15 +75,9 @@ wait_ready() {   # 4. wait until Argo CD has deployed everything and the public 
   die "not ready after 20 min - check: kubectl -n argocd get applications"
 }
 
-emr() {          # 5. EMR cluster + Flink job (logs shipped to Loki through an internal load balancer)
+emr() {          # 5. EMR cluster + Flink job (its logs reach Loki through Kafka: EMR -> MSK -> Fluent Bit -> Loki)
   log "5/5 EMR + Flink job (~15 min)"
-  local loki=""
-  for i in $(seq 1 60); do
-    loki=$(kubectl -n monitoring get svc loki-ingest -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || true)
-    [ -n "$loki" ] && break; sleep 10
-  done
-  [ -n "$loki" ] || die "Loki load balancer not ready (is step 'wait' done?)"
-  terraform -chdir="$TF1" apply -input=false -auto-approve -var enable_emr=true -var "loki_push_url=http://$loki:3100/loki/api/v1/push"
+  terraform -chdir="$TF1" apply -input=false -auto-approve -var enable_emr=true
   "$(dirname "$0")/flink-job.sh"
 }
 

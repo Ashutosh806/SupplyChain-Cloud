@@ -1,4 +1,7 @@
 # Log shipper: DaemonSet tails every container's stdout and pushes to Loki with k8s labels.
+# It also consumes the Flink job's logs that Fluent Bit on the EMR nodes publishes to the Kafka
+# topic "emr-logs" (EMR -> MSK -> here -> Loki, job="emr-flink"), so the analytics job's logs are
+# centralized too without a load balancer. KAFKA_BOOTSTRAP comes from a ConfigMap made by Terraform.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -15,6 +18,9 @@ spec:
     targetRevision: 0.58.3
     helm:
       valuesObject:
+        envFrom:
+          - configMapRef:
+              name: kafka-endpoints
         daemonSetVolumes:
           - name: varlog
             hostPath: { path: /var/log }
@@ -32,6 +38,16 @@ spec:
                 Mem_Buf_Limit 10MB
                 Skip_Long_Lines On
                 Refresh_Interval 5
+
+            [INPUT]
+                Name kafka
+                Tag emr.flink
+                Brokers ${KAFKA_BOOTSTRAP}
+                Topics emr-logs
+                Group_Id fluent-bit-emr-logs
+                Format json
+                rdkafka.auto.offset.reset earliest
+                rdkafka.allow.auto.create.topics true
           filters: |
             [FILTER]
                 Name kubernetes
@@ -42,6 +58,12 @@ spec:
                 Annotations Off
                 K8S-Logging.Parser On
                 K8S-Logging.Exclude On
+
+            [FILTER]
+                Name nest
+                Match emr.*
+                Operation lift
+                Nested_under payload
           outputs: |
             [OUTPUT]
                 Name loki
@@ -52,6 +74,15 @@ spec:
                 remove_keys kubernetes
                 line_format json
                 auto_kubernetes_labels off
+
+            [OUTPUT]
+                Name loki
+                Match emr.*
+                Host loki-gateway.monitoring.svc.cluster.local
+                Port 80
+                labels job=emr-flink, app=shipment-analytics, namespace=emr, emr_role=$emr_role
+                remove_keys topic, partition, offset, error, key
+                line_format json
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

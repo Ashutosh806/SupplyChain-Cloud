@@ -1,17 +1,16 @@
 #!/bin/bash
-# EMR bootstrap action: ship Flink (YARN container) logs to Loki so the analytics job's logs
-# land in the same centralized logging stack as the EKS microservices.
-#   arg1 = Loki push URL, e.g. http://internal-nlb-xxxx.elb.ap-south-1.amazonaws.com:3100/loki/api/v1/push
+# EMR bootstrap action: ship the Flink (YARN container) logs into the same centralized Loki as the
+# EKS microservices. Fluent Bit on each EMR node publishes them to a Kafka topic on MSK; Fluent Bit
+# in the EKS cluster consumes that topic into Loki (job="emr-flink"). No load balancer is needed.
+#   arg1 = MSK bootstrap brokers (host:9092,host:9092)    arg2 = Kafka topic (default: emr-logs)
 # Never fails the cluster launch: logging is best-effort.
 set -u
-LOKI_URL="${1:-}"
-if [ -z "$LOKI_URL" ]; then
-  echo "No Loki URL given; skipping Fluent Bit install"
+BROKERS="${1:-}"
+TOPIC="${2:-emr-logs}"
+if [ -z "$BROKERS" ]; then
+  echo "No Kafka brokers given; skipping Fluent Bit install"
   exit 0
 fi
-
-HOST=$(echo "$LOKI_URL" | sed -E 's#^https?://([^:/]+).*#\1#')
-PORT=$(echo "$LOKI_URL" | sed -nE 's#^https?://[^:/]+:([0-9]+).*#\1#p'); PORT=${PORT:-80}
 ROLE=$(grep -q '"isMaster": true' /mnt/var/lib/info/instance.json 2>/dev/null && echo primary || echo core)
 
 {
@@ -23,7 +22,6 @@ sudo tee /etc/fluent-bit/fluent-bit.conf >/dev/null <<EOF
 [SERVICE]
     Flush        2
     Log_Level    info
-    Parsers_File parsers.conf
 
 [INPUT]
     Name              tail
@@ -42,19 +40,19 @@ sudo tee /etc/fluent-bit/fluent-bit.conf >/dev/null <<EOF
     Record  emr_role ${ROLE}
 
 [OUTPUT]
-    Name        loki
-    Match       *
-    Host        ${HOST}
-    Port        ${PORT}
-    Labels      job=emr-flink, app=shipment-analytics, namespace=emr, emr_role=${ROLE}
-    Line_Format json
+    Name           kafka
+    Match          *
+    Brokers        ${BROKERS}
+    Topics         ${TOPIC}
+    Format         json
+    Timestamp_Key  @timestamp
 EOF
 
 BIN=/opt/fluent-bit/bin/fluent-bit
 [ -x "$BIN" ] || BIN=$(command -v fluent-bit || echo /opt/fluent-bit/bin/fluent-bit)
 sudo tee /etc/systemd/system/fluent-bit-emr.service >/dev/null <<EOF
 [Unit]
-Description=Fluent Bit -> Loki (EMR Flink logs)
+Description=Fluent Bit -> Kafka (EMR Flink logs)
 After=network-online.target
 
 [Service]

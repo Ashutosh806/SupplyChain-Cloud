@@ -105,6 +105,17 @@ resource "kubernetes_config_map_v1" "infra" {
   }
 }
 
+# Fluent Bit (monitoring namespace) reads the EMR/Flink logs from Kafka: it needs the brokers too.
+resource "kubernetes_config_map_v1" "monitoring_kafka" {
+  metadata {
+    name      = "kafka-endpoints"
+    namespace = kubernetes_namespace_v1.ns["monitoring"].metadata[0].name
+  }
+  data = {
+    KAFKA_BOOTSTRAP = local.p.kafka_bootstrap_brokers
+  }
+}
+
 resource "kubernetes_secret_v1" "db" {
   metadata {
     name      = "db-credentials"

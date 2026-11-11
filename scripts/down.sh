@@ -11,7 +11,6 @@ if aws eks update-kubeconfig --name "$CLUSTER" --region "$REGION" >/dev/null 2>&
     kubectl -n argocd patch "$app" --type json -p '[{"op":"remove","path":"/spec/syncPolicy/automated"}]' >/dev/null 2>&1 || true
   done
   kubectl delete ingress -A --all --timeout=5m || true
-  kubectl -n monitoring delete svc loki-ingest --timeout=5m || true
   kubectl -n supplychain delete statefulset --all --timeout=3m || true
   kubectl -n monitoring delete statefulset --all --timeout=3m || true
   kubectl delete pvc -A --all --timeout=5m || true

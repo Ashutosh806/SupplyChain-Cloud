@@ -164,10 +164,12 @@ resource "aws_emr_cluster" "flink" {
     }
   }
 
+  # Fluent Bit on every EMR node publishes the Flink (YARN container) logs to the MSK topic
+  # "emr-logs"; Fluent Bit in EKS consumes that topic into Loki (no load balancer needed).
   bootstrap_action {
-    name = "fluent-bit-to-loki"
+    name = "fluent-bit-logs-to-kafka"
     path = "s3://${aws_s3_bucket.emr.id}/${aws_s3_object.fluent_bit_bootstrap.key}"
-    args = [var.loki_push_url]
+    args = [aws_msk_cluster.this.bootstrap_brokers, "emr-logs"]
   }
 
   configurations_json = jsonencode([

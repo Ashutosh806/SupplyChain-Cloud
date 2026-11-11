@@ -27,6 +27,5 @@ output "ecr_registry" { value = "${local.account_id}.dkr.ecr.${var.region}.amazo
 output "ecr_repositories" { value = { for k, r in aws_ecr_repository.svc : k => r.repository_url } }
 
 output "emr_cluster_id" { value = try(aws_emr_cluster.flink[0].id, "") }
-output "loki_push_url" { value = var.loki_push_url }
 output "notification_function_name" { value = aws_lambda_function.notification.function_name }
 output "emr_master_dns" { value = try(aws_emr_cluster.flink[0].master_public_dns, "") }

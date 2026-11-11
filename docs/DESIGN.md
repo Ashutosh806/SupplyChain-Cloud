@@ -61,7 +61,6 @@ flowchart TB
         rds[(Amazon RDS<br/>PostgreSQL 16)]
         msk[[Amazon MSK<br/>Kafka 3.9 · 2 brokers]]
         emr["Amazon EMR 7.14<br/>Flink 1.20 on YARN"]
-        nlb[Internal NLB → Loki]
       end
     end
     s3[(Amazon S3<br/>raw events · POD files)]
@@ -72,7 +71,7 @@ flowchart TB
     ecr[(Amazon ECR)]
   end
   github[(GitHub repo)] -->|pull, every 60s| argo
-  ci[GitHub Actions] -->|push images| ecr
+  ci["make up (laptop)"] -->|push images| ecr
   ci -->|commit image tags| github
   alb --> apps
   alb --> mon
@@ -85,7 +84,7 @@ flowchart TB
   lambda --> ddb
   lambda --> sns
   apps --> ddb
-  emr -->|Fluent Bit| nlb --> mon
+  msk -->|"emr-logs topic (Flink logs)"| mon
   user -->|Function URL| lambda
 ```
 
@@ -274,9 +273,10 @@ store" row shows quorum ops, peer health, hints, repairs.
   health. Dashboard *Supply Chain – Overview* (provisioned from Git) + alert rules (error rate, p95,
   outbox backlog, quorum failures, replica down).
 * **Logs**: services log one JSON object per line → Fluent Bit DaemonSet → Loki (labels namespace/app/pod).
-  The Flink job's YARN container logs are shipped from the EMR nodes by Fluent Bit (bootstrap action)
-  to Loki through an internal NLB (`{job="emr-flink"}`); Lambda logs are queried through the Grafana
-  CloudWatch data source.
+  The Flink job's YARN container logs are published by Fluent Bit on the EMR nodes (bootstrap action)
+  to the Kafka topic `emr-logs` on MSK, and the Fluent Bit DaemonSet in EKS consumes that topic into
+  the same Loki (`{job="emr-flink"}`). Reusing the existing Kafka cluster keeps Loki private and needs
+  no extra load balancer. Lambda logs are queried through the Grafana CloudWatch data source.
 
 ---
 

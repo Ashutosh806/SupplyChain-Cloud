@@ -60,9 +60,4 @@ variable "emr_instance_type" {
   default = "m5.xlarge"
 }
 
-variable "loki_push_url" {
-  description = "Loki push endpoint reachable from the VPC (internal NLB); EMR ships Flink logs here"
-  type        = string
-  default     = ""
-}
 
