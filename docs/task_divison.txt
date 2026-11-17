@@ -1,0 +1,20 @@
+Cloud Computing - Assignment task division
+Domain  : Supply Chain - shipment tracking from suppliers to retailers
+Concept : Leaderless replication / Dynamo-like storage system
+Cloud   : AWS
+
+ID No.          Name          Requirements (a-h)                                   Microservices
+--------------  ------------  ---------------------------------------------------  -------------------------------------------
+2026H1030077P   B Aditya Pai    (a) Infrastructure as Code (Terraform)               Supplier Service
+                                (d) GitOps (Argo CD)                                 Inventory Service
+
+2026H1030073P   Rishabh SB      (b) Serverless function + REST / gRPC / queues       Shipment Booking Service (public web app)
+                                (g) Three storage products (S3, RDS, DynamoDB)       Notification Service (AWS Lambda)
+
+2026H1030060P   Akshat Kumar    (c) Managed Kubernetes (EKS) + HPA + k6 load test    Tracking Ingestion Service
+                              	(h) Observability (Prometheus, Grafana, Loki)        Event Publisher (outbox)
+
+2026H1030082P   Ashutosh Golani (e) Flink stream processing on Amazon EMR            Delivery Status Service (Dynamo-style store)
+                                (f) Concept: leaderless Dynamo-like replication      Shipment Analytics Service (Flink job)
+
+
