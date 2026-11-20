@@ -125,28 +125,28 @@
   <section>
     <h2>4 · Live status (Delivery Status · quorum read)</h2>
     <div id="status" class="muted">Select a shipment.</div>
-    <div style="margin-top:8px">
+    <!-- <div style="margin-top:8px">
       <label style="display:inline">Read quorum R </label>
       <select id="rsel" style="width:auto"><option>1</option><option selected>2</option><option>3</option></select>
       <button class="small" onclick="showReplicas()">Inspect replicas</button>
       <button class="small" onclick="conflict()">Create concurrent siblings</button>
     </div>
-    <pre id="replicas" style="display:none"></pre>
+    <pre id="replicas" style="display:none"></pre> -->
   </section>
 
-  <section class="wide">
+  <!-- <section class="wide">
     <h2>5 · Leaderless replicated store — ring (N/R/W, hinted handoff, anti-entropy)</h2>
     <div class="muted" id="ringMeta"></div>
     <div class="nodes" id="nodes" style="margin-top:8px"></div>
-  </section>
+  </section> -->
 
   <section>
-    <h2>6 · Notifications (SQS → Lambda → DynamoDB/SNS)</h2>
+    <h2>5 · Notifications (SQS → Lambda → DynamoDB/SNS)</h2>
     <table><thead><tr><th>When</th><th>Shipment</th><th>Status</th><th>Message</th></tr></thead><tbody id="notifBody"></tbody></table>
   </section>
 
   <section>
-    <h2>7 · Shipment analytics (Flink on EMR → Kafka → DynamoDB)</h2>
+    <h2>6 · Shipment analytics (Flink on EMR → Kafka → DynamoDB)</h2>
     <div id="anSummary" class="kv"></div>
     <table style="margin-top:10px"><thead><tr><th>Carrier</th><th>Last window</th><th>Events</th><th>Unique</th><th>Delayed</th><th>Lag ms</th></tr></thead><tbody id="anBody"></tbody></table>
   </section>
